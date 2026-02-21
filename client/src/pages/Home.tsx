@@ -171,7 +171,7 @@ const Home: React.FC = () => {
   const originalHero = {
     headline: 'Welcome to Appointo',
     subtext:
-      'Streamline your appointment scheduling process. Book, manage, and track appointments with ease using our modern scheduling system.',
+      'Sttreamline your appointment scheduling process. Book, manage, and track appointments with ease using our modern scheduling system.',
   };
   const typedSubtext = useTypingEffect(originalHero.subtext, 40);
 

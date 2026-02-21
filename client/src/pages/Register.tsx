@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Container,
-  Paper,
   Box,
   TextField,
   Button,
@@ -16,33 +15,9 @@ import * as yup from 'yup';
 import { useAuth } from '../contexts/AuthContext';
 import { RegisterCredentials } from '../types';
 
-// Liquid glass wrapper component
-const LiquidGlassWrapper: React.FC<{
-  children: React.ReactNode;
-  borderRadius?: number;
-}> = ({ children, borderRadius = 12 }) => {
-  return (
-    <Box
-      className="liquid-glass"
-      sx={{
-        borderRadius: borderRadius,
-        transition: 'all 0.3s ease',
-        width: '100%',
-      }}
-    >
-      {children}
-    </Box>
-  );
-};
-
 const validationSchema = yup.object({
-  name: yup
-    .string()
-    .required('Name is required'),
-  email: yup
-    .string()
-    .email('Enter a valid email')
-    .required('Email is required'),
+  name: yup.string().required('Name is required'),
+  email: yup.string().email('Enter a valid email').required('Email is required'),
   password: yup
     .string()
     .min(6, 'Password should be at least 6 characters')
@@ -52,6 +27,8 @@ const validationSchema = yup.object({
     .oneOf([yup.ref('password')], 'Passwords must match')
     .required('Confirm password is required')
 });
+
+const NUM_BUBBLES = 15;
 
 const Register: React.FC = () => {
   const { register, loading } = useAuth();
@@ -65,211 +42,178 @@ const Register: React.FC = () => {
       password: '',
       confirmPassword: ''
     },
-    validationSchema: validationSchema,
+    validationSchema,
     onSubmit: async (values: RegisterCredentials) => {
       try {
         setError('');
         await register(values);
         navigate('/dashboard');
-      } catch (err) {
+      } catch {
         setError('Registration failed. Please try again.');
       }
     }
   });
 
   return (
-    <Container component="main" maxWidth="xs">
-      {/* Liquid glass styles */}
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#ffffff',
+        overflow: 'hidden',
+        position: 'relative'
+      }}
+    >
+      {/* Same Animated Baby Blue Bubbles */}
       <style>{`
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
+        @keyframes floatUp {
+          0% {
+            transform: translateY(100vh) scale(0.3);
+            opacity: 0;
+          }
+          20% {
+            opacity: 0.4;
+          }
+          80% {
+            opacity: 0.3;
+          }
+          100% {
+            transform: translateY(-200px) scale(1.2);
+            opacity: 0;
+          }
         }
-
-        /* ===== Liquid Glass Base ===== */
-        .liquid-glass {
-          position: relative;
-          backdrop-filter: blur(14px) saturate(160%);
-          -webkit-backdrop-filter: blur(14px) saturate(160%);
-          background: rgba(255, 255, 255, 0.15);
-          border: 1px solid rgba(255, 255, 255, 0.25);
-          box-shadow:
-            0 8px 32px rgba(0, 0, 0, 0.12),
-            inset 0 1px 0 rgba(255, 255, 255, 0.4);
-          overflow: hidden;
+        
+        @keyframes floatSideways {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(30px); }
         }
-
-        /* Soft inner shine */
-        .liquid-glass::before {
-          content: "";
+        
+        .bubble {
           position: absolute;
-          inset: 0;
-          background: linear-gradient(
-            120deg,
-            rgba(255,255,255,0.4),
-            rgba(255,255,255,0.05)
-          );
-          opacity: 0.4;
+          border-radius: 50%;
+          background: radial-gradient(circle at 30% 30%, rgba(173, 216, 230, 0.8), rgba(135, 206, 235, 0.3));
+          box-shadow: inset -3px -3px 10px rgba(255,255,255,0.8), inset 3px 3px 15px rgba(255,255,255,0.9);
+          animation: floatUp linear infinite, floatSideways ease-in-out infinite;
           pointer-events: none;
-        }
-
-        /* Hover depth */
-        .liquid-glass:hover {
-          transform: translateY(-3px);
-          box-shadow:
-            0 12px 40px rgba(0, 0, 0, 0.18),
-            inset 0 1px 0 rgba(255, 255, 255, 0.6);
         }
       `}</style>
 
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center'
-        }}
-      >
-        <LiquidGlassWrapper borderRadius={12}>
-          <Paper
-            elevation={0}
+      {Array.from({ length: NUM_BUBBLES }).map((_, i) => {
+        const size = 30 + Math.random() * 90;
+        const left = Math.random() * 100;
+        const delay = Math.random() * 20;
+        const duration = 12 + Math.random() * 18;
+        const sidewayDuration = 5 + Math.random() * 8;
+        const sidewayDelay = Math.random() * 5;
+        const opacity = 0.1 + Math.random() * 0.3;
+
+        return (
+          <Box
+            key={i}
+            className="bubble"
             sx={{
-              p: 4,
-              width: '100%',
-              bgcolor: 'transparent',
-              boxShadow: 'none',
-              borderRadius: 0, // handled by wrapper
+              width: size,
+              height: size,
+              left: `${left}%`,
+              bottom: '-200px',
+              animationDuration: `${duration}s, ${sidewayDuration}s`,
+              animationDelay: `${delay}s, ${sidewayDelay}s`,
+              background: `radial-gradient(circle at 30% 30%, rgba(173, 216, 230, ${opacity + 0.3}), rgba(135, 206, 235, ${opacity}))`,
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                top: '15%',
+                left: '20%',
+                width: '20%',
+                height: '20%',
+                background: 'radial-gradient(circle, rgba(255,255,255,0.9) 0%, transparent 80%)',
+                borderRadius: '50%',
+              }
             }}
+          />
+        );
+      })}
+
+      {/* Register Card */}
+      <Container maxWidth="xs" sx={{ position: 'relative', zIndex: 1 }}>
+        <Box
+          sx={{
+            p: 5,
+            borderRadius: '32px',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+            background: 'linear-gradient(135deg, #ffffff 0%, #e0f2fe 100%)',
+            color: '#0f172a'
+          }}
+        >
+          <Typography
+            variant="h5"
+            align="center"
+            sx={{ fontWeight: 600, mb: 3 }}
           >
-            <Typography component="h1" variant="h5" align="center" gutterBottom>
-              Create Account
-            </Typography>
-            
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
+            Create Account
+          </Typography>
 
-            <Box component="form" onSubmit={formik.handleSubmit} noValidate sx={{ mt: 1 }}>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="name"
-                label="Full Name"
-                name="name"
-                autoComplete="name"
-                autoFocus
-                value={formik.values.name}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                error={formik.touched.name && Boolean(formik.errors.name)}
-                helperText={formik.touched.name && formik.errors.name}
-                disabled={loading}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255,255,255,0.5)',
-                    backdropFilter: 'blur(4px)',
-                  }
-                }}
-              />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="email"
-                label="Email Address"
-                name="email"
-                autoComplete="email"
-                value={formik.values.email}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                error={formik.touched.email && Boolean(formik.errors.email)}
-                helperText={formik.touched.email && formik.errors.email}
-                disabled={loading}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255,255,255,0.5)',
-                    backdropFilter: 'blur(4px)',
-                  }
-                }}
-              />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                name="password"
-                label="Password"
-                type="password"
-                id="password"
-                autoComplete="new-password"
-                value={formik.values.password}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                error={formik.touched.password && Boolean(formik.errors.password)}
-                helperText={formik.touched.password && formik.errors.password}
-                disabled={loading}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255,255,255,0.5)',
-                    backdropFilter: 'blur(4px)',
-                  }
-                }}
-              />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                name="confirmPassword"
-                label="Confirm Password"
-                type="password"
-                id="confirmPassword"
-                autoComplete="new-password"
-                value={formik.values.confirmPassword}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
-                helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
-                disabled={loading}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    backgroundColor: 'rgba(255,255,255,0.5)',
-                    backdropFilter: 'blur(4px)',
-                  }
-                }}
-              />
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
-                <LiquidGlassWrapper borderRadius={8}>
-                  <Button
-                    type="submit"
-                    fullWidth
-                    variant="text"
-                    disabled={loading}
-                    sx={{
-                      px: 4,
-                      py: 1.5,
-                      fontWeight: 600,
-                      color: '#0F172A',
-                      textTransform: 'none',
-                    }}
-                  >
-                    {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign Up'}
-                  </Button>
-                </LiquidGlassWrapper>
-              </Box>
-              
-              <Box sx={{ textAlign: 'center', mt: 2 }}>
-                <Link component={RouterLink} to="/login" variant="body2">
-                  Already have an account? Sign In
-                </Link>
-              </Box>
+          <Box component="form" onSubmit={formik.handleSubmit}>
+            <TextField fullWidth margin="normal" label="Full Name" name="name"
+              value={formik.values.name}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.name && Boolean(formik.errors.name)}
+              helperText={formik.touched.name && formik.errors.name}
+            />
+
+            <TextField fullWidth margin="normal" label="Email Address" name="email"
+              value={formik.values.email}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.email && Boolean(formik.errors.email)}
+              helperText={formik.touched.email && formik.errors.email}
+            />
+
+            <TextField fullWidth margin="normal" label="Password" type="password" name="password"
+              value={formik.values.password}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.password && Boolean(formik.errors.password)}
+              helperText={formik.touched.password && formik.errors.password}
+            />
+
+            <TextField fullWidth margin="normal" label="Confirm Password" type="password" name="confirmPassword"
+              value={formik.values.confirmPassword}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
+              helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
+            />
+
+            <Button
+              fullWidth
+              type="submit"
+              variant="contained"
+              sx={{
+                mt: 4,
+                borderRadius: '999px',
+                py: 1.6,
+                fontWeight: 600,
+                textTransform: 'none'
+              }}
+            >
+              {loading ? <CircularProgress size={22} color="inherit" /> : 'Sign Up'}
+            </Button>
+
+            <Box sx={{ textAlign: 'center', mt: 3 }}>
+              <Link component={RouterLink} to="/login" sx={{ color: '#3b82f6' }}>
+                Already have an account? Login
+              </Link>
             </Box>
-          </Paper>
-        </LiquidGlassWrapper>
-      </Box>
-    </Container>
+          </Box>
+        </Box>
+      </Container>
+    </Box>
   );
 };
 
