@@ -10,6 +10,15 @@ import {
   Alert,
   CircularProgress,
   alpha,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
+  Stepper,
+  Step,
+  StepLabel,
+  Grid
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -79,26 +88,71 @@ const radius = {
 const NUM_BUBBLES = 15;
 
 const Register: React.FC = () => {
-  const { register, loading } = useAuth();
+  // FIXED: Changed from 'register' to 'registerClient' and 'registerProfessional'
+  const { registerClient, registerProfessional, loading } = useAuth();
   const navigate = useNavigate();
+  
+  // Form state
+  const [activeStep, setActiveStep] = useState(0);
+  const [role, setRole] = useState('client');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [profession, setProfession] = useState('');
   const [error, setError] = useState('');
+
+  const steps = ['Choose Account Type', 'Personal Information'];
+
+  const handleNext = () => {
+    if (activeStep === 0) {
+      if (!role) {
+        setError('Please select a role');
+        return;
+      }
+      setActiveStep(1);
+      setError('');
+    }
+  };
+
+  const handleBack = () => {
+    setActiveStep(0);
+    setError('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
+
     try {
-      await register({ name, email, password, confirmPassword });
+      if (role === 'client') {
+        await registerClient({
+          name,
+          email,
+          password,
+          confirmPassword
+        });
+      } else {
+        if (!profession) {
+          setError('Profession is required for professionals');
+          return;
+        }
+        await registerProfessional({
+          name,
+          email,
+          password,
+          confirmPassword,
+          profession
+        });
+      }
       navigate('/dashboard');
-    } catch (err) {
-      setError('Registration failed. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Registration failed. Please try again.');
     }
   };
 
@@ -217,7 +271,7 @@ const Register: React.FC = () => {
       })}
 
       {/* Glass Card */}
-      <Container maxWidth="xs" sx={{ position: 'relative', zIndex: 2 }}>
+      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 2 }}>
         <Box
           sx={{
             p: 5,
@@ -245,6 +299,14 @@ const Register: React.FC = () => {
             Create Account
           </Typography>
 
+          <Stepper activeStep={activeStep} sx={{ my: 3 }}>
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
@@ -252,100 +314,168 @@ const Register: React.FC = () => {
           )}
 
           <Box component="form" onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Full Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              autoComplete="name"
-              variant="outlined"
-              InputProps={{
-                sx: {
-                  borderRadius: radius.button,
-                  backgroundColor: 'transparent',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
-                },
-              }}
-            />
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Email Address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              variant="outlined"
-              InputProps={{
-                sx: {
-                  borderRadius: radius.button,
-                  backgroundColor: 'transparent',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
-                },
-              }}
-            />
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-              variant="outlined"
-              InputProps={{
-                sx: {
-                  borderRadius: radius.button,
-                  backgroundColor: 'transparent',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
-                },
-              }}
-            />
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Confirm Password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-              variant="outlined"
-              InputProps={{
-                sx: {
-                  borderRadius: radius.button,
-                  backgroundColor: 'transparent',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
-                },
-              }}
-            />
+            {activeStep === 0 ? (
+              // Step 1: Choose Role
+              <Box>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel id="role-label">I want to register as</InputLabel>
+                  <Select
+                    labelId="role-label"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    label="I want to register as"
+                    disabled={loading}
+                    sx={{
+                      borderRadius: radius.button,
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
+                    }}
+                  >
+                    <MenuItem value="client">Client (Book appointments)</MenuItem>
+                    <MenuItem value="professional">Professional (Offer services)</MenuItem>
+                  </Select>
+                </FormControl>
 
-            <Button
-              fullWidth
-              type="submit"
-              variant="contained"
-              disabled={loading}
-              sx={{
-                mt: 4,
-                py: 1.6,
-                bgcolor: colors.primary,
-                borderRadius: radius.button,
-                fontSize: '1rem',
-                fontWeight: 600,
-                boxShadow: `0 8px 20px ${alpha(colors.primary, 0.3)}`,
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  bgcolor: colors.primaryDark,
-                  boxShadow: `0 12px 28px ${alpha(colors.primary, 0.4)}`,
-                  transform: 'translateY(-2px)',
-                },
-              }}
-            >
-              {loading ? <CircularProgress size={22} color="inherit" /> : 'Sign Up'}
-            </Button>
+                {role === 'professional' && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                    As a professional, you'll be able to create services and manage appointments.
+                  </Typography>
+                )}
+              </Box>
+            ) : (
+              // Step 2: Personal Information
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    margin="normal"
+                    label="Full Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    autoComplete="name"
+                    variant="outlined"
+                    InputProps={{
+                      sx: {
+                        borderRadius: radius.button,
+                        backgroundColor: 'transparent',
+                        '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
+                      },
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    margin="normal"
+                    label="Email Address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    variant="outlined"
+                    InputProps={{
+                      sx: {
+                        borderRadius: radius.button,
+                        backgroundColor: 'transparent',
+                        '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
+                      },
+                    }}
+                  />
+                </Grid>
+
+                {role === 'professional' && (
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      margin="normal"
+                      label="Your Profession"
+                      value={profession}
+                      onChange={(e) => setProfession(e.target.value)}
+                      required
+                      placeholder="e.g., Hair Stylist, Dentist, Personal Trainer"
+                      variant="outlined"
+                      InputProps={{
+                        sx: {
+                          borderRadius: radius.button,
+                          backgroundColor: 'transparent',
+                          '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
+                        },
+                      }}
+                    />
+                  </Grid>
+                )}
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    margin="normal"
+                    label="Password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="new-password"
+                    variant="outlined"
+                    InputProps={{
+                      sx: {
+                        borderRadius: radius.button,
+                        backgroundColor: 'transparent',
+                        '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
+                      },
+                    }}
+                  />
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    margin="normal"
+                    label="Confirm Password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    autoComplete="new-password"
+                    variant="outlined"
+                    InputProps={{
+                      sx: {
+                        borderRadius: radius.button,
+                        backgroundColor: 'transparent',
+                        '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.border },
+                      },
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            )}
+
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+              {activeStep > 0 && (
+                <Button onClick={handleBack} disabled={loading}>
+                  Back
+                </Button>
+              )}
+              {activeStep === 0 ? (
+                <Button
+                  variant="contained"
+                  onClick={handleNext}
+                  disabled={loading}
+                  sx={{ ml: 'auto' }}
+                >
+                  Next
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={loading}
+                  sx={{ ml: 'auto' }}
+                >
+                  {loading ? <CircularProgress size={22} /> : 'Sign Up'}
+                </Button>
+              )}
+            </Box>
 
             <Box sx={{ textAlign: 'center', mt: 3 }}>
               <Link component={RouterLink} to="/login" sx={{ color: colors.primary, fontWeight: 500 }}>

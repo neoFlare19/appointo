@@ -8,6 +8,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  ListItemAvatar,
   alpha,
   Drawer,
   IconButton,
@@ -19,6 +20,12 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  Grid,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -31,6 +38,10 @@ import {
   ExitToApp as LogoutIcon,
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
+  Event as EventIcon,
+  AccessTime as AccessTimeIcon,
+  CheckCircle as CheckCircleIcon,
+  Pending as PendingIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useLocation, Outlet, Link as RouterLink } from 'react-router-dom';
@@ -81,6 +92,8 @@ const colors = {
   accentLight: '#38BDF8',
   success: '#10B981',
   error: '#DC2626',
+  warning: '#ED6C02',
+  info: '#0288D1',
   background: '#FFFFFF',
   backgroundAlt: '#F8FAFC',
   backgroundLight: '#F1F5F9',
@@ -161,16 +174,79 @@ const NotificationWidget: React.FC = () => {
   );
 };
 
+// ========== APPOINTMENT TYPE ==========
+interface Appointment {
+  _id: string;
+  service: string;
+  date: string;
+  time: string;
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  professional?: {
+    name: string;
+    profession: string;
+  };
+  client?: {
+    name: string;
+    email: string;
+  };
+}
+
 // ========== MAIN DASHBOARD ==========
 const Dashboard: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();  // ADDED token here
   const { darkMode, toggleDarkMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const open = Boolean(anchorEl);
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      // Use token from context instead of localStorage
+      
+      // Choose endpoint based on user role
+      const endpoint = user?.role === 'professional' 
+        ? 'http://localhost:5000/api/appointments/professional-appointments'
+        : 'http://localhost:5000/api/appointments/my-appointments';
+      
+      const response = await fetch(endpoint, {
+        headers: {
+          'Authorization': `Bearer ${token}`  // USING TOKEN FROM CONTEXT
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setAppointments(data.data);
+      } else {
+        setError('Failed to load appointments');
+      }
+    } catch (err) {
+      setError('Error connecting to server');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch appointments on component mount
+  useEffect(() => {
+    if (token) {  // Only fetch if token exists
+      fetchAppointments();
+    }
+  }, [token]); // ADDED token as dependency
+
+  // Calculate stats
+  const upcomingCount = appointments.filter(a => a.status === 'pending' || a.status === 'confirmed').length;
+  const completedCount = appointments.filter(a => a.status === 'completed').length;
+  const pendingCount = appointments.filter(a => a.status === 'pending').length;
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleAvatarClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -444,8 +520,252 @@ const Dashboard: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Nested routes (DashboardHome, etc.) */}
-        <Outlet />
+        {/* Dashboard Home Content - Only show when on /dashboard */}
+        {location.pathname === '/dashboard' && (
+          <>
+            {loading ? (
+              <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+                <CircularProgress />
+              </Box>
+            ) : error ? (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {error}
+              </Alert>
+            ) : (
+              <Box className="fadeUp" sx={{ animationDelay: '0.2s' }}>
+                <Typography variant="subtitle1" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
+                  {user?.role === 'professional' ? 'Professional' : 'Client'} Dashboard
+                </Typography>
+                
+                <Grid container spacing={3} sx={{ mb: 4 }}>
+                  {/* Stats Cards */}
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{ 
+                      bgcolor: 'rgba(255,255,255,0.4)', 
+                      backdropFilter: 'blur(8px)',
+                      borderRadius: radius.card,
+                      border: '1px solid rgba(255,255,255,0.5)',
+                    }}>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <Avatar sx={{ bgcolor: alpha(colors.primary, 0.1), color: colors.primary, mr: 2 }}>
+                            <EventIcon />
+                          </Avatar>
+                          <Typography variant="h6">Upcoming</Typography>
+                        </Box>
+                        <Typography variant="h4" align="center" sx={{ fontWeight: 600, color: colors.primary }}>
+                          {upcomingCount}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{ 
+                      bgcolor: 'rgba(255,255,255,0.4)', 
+                      backdropFilter: 'blur(8px)',
+                      borderRadius: radius.card,
+                      border: '1px solid rgba(255,255,255,0.5)',
+                    }}>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <Avatar sx={{ bgcolor: alpha(colors.success, 0.1), color: colors.success, mr: 2 }}>
+                            <CheckCircleIcon />
+                          </Avatar>
+                          <Typography variant="h6">Completed</Typography>
+                        </Box>
+                        <Typography variant="h4" align="center" sx={{ fontWeight: 600, color: colors.success }}>
+                          {completedCount}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{ 
+                      bgcolor: 'rgba(255,255,255,0.4)', 
+                      backdropFilter: 'blur(8px)',
+                      borderRadius: radius.card,
+                      border: '1px solid rgba(255,255,255,0.5)',
+                    }}>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <Avatar sx={{ bgcolor: alpha(colors.warning, 0.1), color: colors.warning, mr: 2 }}>
+                            <PendingIcon />
+                          </Avatar>
+                          <Typography variant="h6">Pending</Typography>
+                        </Box>
+                        <Typography variant="h4" align="center" sx={{ fontWeight: 600, color: colors.warning }}>
+                          {pendingCount}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{ 
+                      bgcolor: 'rgba(255,255,255,0.4)', 
+                      backdropFilter: 'blur(8px)',
+                      borderRadius: radius.card,
+                      border: '1px solid rgba(255,255,255,0.5)',
+                    }}>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <Avatar sx={{ bgcolor: alpha(colors.accent, 0.1), color: colors.accent, mr: 2 }}>
+                            <AccessTimeIcon />
+                          </Avatar>
+                          <Typography variant="h6">Total</Typography>
+                        </Box>
+                        <Typography variant="h4" align="center" sx={{ fontWeight: 600, color: colors.accent }}>
+                          {appointments.length}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  {/* Appointments List */}
+                  <Grid item xs={12}>
+                    <Paper sx={{ 
+                      p: 3, 
+                      bgcolor: 'rgba(255,255,255,0.4)', 
+                      backdropFilter: 'blur(8px)',
+                      borderRadius: radius.card,
+                      border: '1px solid rgba(255,255,255,0.5)',
+                    }}>
+                      <Typography variant="h6" gutterBottom>
+                        {user?.role === 'professional' ? 'Appointments with You' : 'Your Recent Appointments'}
+                      </Typography>
+                      
+                      {appointments.length === 0 ? (
+                        <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
+                          No appointments found. Book your first appointment!
+                        </Typography>
+                      ) : (
+                        <List>
+                          {appointments.slice(0, 5).map((apt) => (
+                            <ListItem key={apt._id} divider sx={{ px: 0 }}>
+                              <ListItemAvatar>
+                                <Avatar sx={{ 
+                                  bgcolor: apt.status === 'confirmed' ? alpha(colors.success, 0.2) : 
+                                          apt.status === 'pending' ? alpha(colors.warning, 0.2) :
+                                          apt.status === 'completed' ? alpha(colors.info, 0.2) :
+                                          alpha(colors.error, 0.2)
+                                }}>
+                                  <EventIcon sx={{ 
+                                    color: apt.status === 'confirmed' ? colors.success : 
+                                           apt.status === 'pending' ? colors.warning :
+                                           apt.status === 'completed' ? colors.info :
+                                           colors.error 
+                                  }} />
+                                </Avatar>
+                              </ListItemAvatar>
+                              <ListItemText
+                                primary={
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                                      {apt.service}
+                                    </Typography>
+                                    <Chip
+                                      label={apt.status}
+                                      size="small"
+                                      sx={{
+                                        bgcolor: 
+                                          apt.status === 'confirmed' ? alpha(colors.success, 0.1) :
+                                          apt.status === 'pending' ? alpha(colors.warning, 0.1) :
+                                          apt.status === 'completed' ? alpha(colors.info, 0.1) :
+                                          alpha(colors.error, 0.1),
+                                        color: 
+                                          apt.status === 'confirmed' ? colors.success :
+                                          apt.status === 'pending' ? colors.warning :
+                                          apt.status === 'completed' ? colors.info :
+                                          colors.error,
+                                        fontWeight: 600,
+                                      }}
+                                    />
+                                  </Box>
+                                }
+                                secondary={
+                                  <Box>
+                                    <Typography variant="body2" color="text.secondary">
+                                      Date: {new Date(apt.date).toLocaleDateString()} at {apt.time}
+                                    </Typography>
+                                    {user?.role === 'client' && apt.professional && (
+                                      <Typography variant="body2" color="text.secondary">
+                                        Professional: {apt.professional.name} ({apt.professional.profession})
+                                      </Typography>
+                                    )}
+                                    {user?.role === 'professional' && apt.client && (
+                                      <Typography variant="body2" color="text.secondary">
+                                        Client: {apt.client.name}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                }
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      )}
+                      
+                      {appointments.length > 5 && (
+                        <Box sx={{ textAlign: 'center', mt: 2 }}>
+                          <Typography 
+                            component={RouterLink} 
+                            to="/dashboard/my-appointments"
+                            sx={{ color: colors.primary, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                          >
+                            View all appointments →
+                          </Typography>
+                        </Box>
+                      )}
+                    </Paper>
+                  </Grid>
+
+                  {/* User Info Card */}
+                  <Grid item xs={12}>
+                    <Card sx={{ 
+                      bgcolor: 'rgba(255,255,255,0.4)', 
+                      backdropFilter: 'blur(8px)',
+                      borderRadius: radius.card,
+                      border: '1px solid rgba(255,255,255,0.5)',
+                    }}>
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom>Account Information</Typography>
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} sm={6}>
+                            <Typography variant="subtitle2" color="text.secondary">Name</Typography>
+                            <Typography variant="body1">{user?.name}</Typography>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Typography variant="subtitle2" color="text.secondary">Email</Typography>
+                            <Typography variant="body1">{user?.email}</Typography>
+                          </Grid>
+                          <Grid item xs={12} sm={6}>
+                            <Typography variant="subtitle2" color="text.secondary">Role</Typography>
+                            <Chip
+                              label={user?.role}
+                              color={user?.role === 'professional' ? 'secondary' : 'primary'}
+                              size="small"
+                            />
+                          </Grid>
+                          {user?.profession && (
+                            <Grid item xs={12} sm={6}>
+                              <Typography variant="subtitle2" color="text.secondary">Profession</Typography>
+                              <Typography variant="body1">{user.profession}</Typography>
+                            </Grid>
+                          )}
+                        </Grid>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+              </Box>
+            )}
+          </>
+        )}
+
+        {/* Nested routes (Profile, My Appointments, etc.) */}
+        {location.pathname !== '/dashboard' && <Outlet />}
       </Box>
 
       {/* Animation keyframes */}

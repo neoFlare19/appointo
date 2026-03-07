@@ -549,7 +549,7 @@ const Home: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
-  const { login, register } = useAuth();
+  const { login, registerClient, isAuthenticated } = useAuth(); // FIXED: Changed 'register' to 'registerClient'
 
   const [openLogin, setOpenLogin] = useState(false);
   const [openRegister, setOpenRegister] = useState(false);
@@ -741,7 +741,7 @@ const Home: React.FC = () => {
     { label: 'Contact', ref: contactRef, id: 'contact' },
   ];
 
-  // Login handler
+  // Login handler - FIXED error handling
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -749,12 +749,12 @@ const Home: React.FC = () => {
       await login({ email: loginEmail, password: loginPassword });
       setOpenLogin(false);
       navigate('/dashboard');
-    } catch (error) {
-      setLoginError('Invalid email or password. Use "user@example.com" with password "password" for demo.');
+    } catch (error: any) {
+      setLoginError(error.message || 'Invalid email or password. Please try again.');
     }
   };
 
-  // Register handler
+  // Register handler - FIXED to use registerClient instead of register
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegisterError('');
@@ -763,7 +763,7 @@ const Home: React.FC = () => {
       return;
     }
     try {
-      await register({
+      await registerClient({
         name: registerName,
         email: registerEmail,
         password: registerPassword,
@@ -771,8 +771,8 @@ const Home: React.FC = () => {
       });
       setOpenRegister(false);
       navigate('/dashboard');
-    } catch (error) {
-      setRegisterError('Registration failed. Please try again.');
+    } catch (error: any) {
+      setRegisterError(error.message || 'Registration failed. Please try again.');
     }
   };
 

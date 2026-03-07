@@ -1,14 +1,21 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { User, LoginCredentials, RegisterCredentials } from '../types';
-import { mockAuth } from '../services/mockAuth';
+import { authService } from '../services/authService';
+
+// Extended interface for professional registration
+interface ProfessionalRegisterCredentials extends RegisterCredentials {
+  profession: string;
+}
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
-  register: (credentials: RegisterCredentials) => Promise<void>;
+  registerClient: (credentials: RegisterCredentials) => Promise<void>;
+  registerProfessional: (credentials: ProfessionalRegisterCredentials) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  token: string | null;  // ADDED THIS LINE
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,35 +38,67 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     // Check for existing session on mount
-    const currentUser = mockAuth.getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser);
-    }
-    setLoading(false);
+    const initializeAuth = async () => {
+      const currentUser = authService.getCurrentUser();
+      const token = authService.getToken();
+      
+      if (currentUser && token) {
+        // Optional: Verify token with backend
+        const isValid = await authService.verifyToken();
+        if (isValid) {
+          setUser(currentUser);
+        } else {
+          // Token is invalid, clear storage
+          authService.logout();
+        }
+      }
+      setLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (credentials: LoginCredentials) => {
     setLoading(true);
     try {
-      const response = await mockAuth.login(credentials);
+      const response = await authService.login(credentials);
       setUser(response.user);
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  const register = async (credentials: RegisterCredentials) => {
+  const registerClient = async (credentials: RegisterCredentials) => {
     setLoading(true);
     try {
-      const response = await mockAuth.register(credentials);
+      const response = await authService.registerClient(credentials);
       setUser(response.user);
+    } catch (error) {
+      console.error('Registration failed:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const registerProfessional = async (credentials: ProfessionalRegisterCredentials) => {
+    setLoading(true);
+    try {
+      const response = await authService.registerProfessional(credentials);
+      setUser(response.user);
+    } catch (error) {
+      console.error('Registration failed:', error);
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
   const logout = () => {
-    mockAuth.logout();
+    authService.logout();
     setUser(null);
   };
 
@@ -67,9 +106,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     loading,
     login,
-    register,
+    registerClient,
+    registerProfessional,
     logout,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    token: authService.getToken()  // ADDED THIS LINE
   };
 
   return (

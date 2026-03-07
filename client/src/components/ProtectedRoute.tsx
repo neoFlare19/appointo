@@ -23,7 +23,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, adminOnly = f
     return <Navigate to="/login" replace />;
   }
 
-  if (adminOnly && user?.role !== 'admin') {
+  // FIXED: Changed 'admin' to 'professional'
+  if (adminOnly && user?.role !== 'professional') {
     return <Navigate to="/dashboard" replace />;
   }
 
