@@ -72,7 +72,8 @@ const Header: React.FC = () => {
             >
               Services
             </Button>
-            {user?.role === 'admin' && (
+            {/* FIXED: Changed 'admin' to 'professional' */}
+            {user?.role === 'professional' && (
               <Button
                 component={RouterLink}
                 to="/admin"

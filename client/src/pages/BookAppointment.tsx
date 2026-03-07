@@ -19,12 +19,14 @@ import {
   IconButton,
   useMediaQuery,
   useTheme,
-  Rating,
   Divider,
   List,
   ListItem,
   ListItemText,
   ListItemIcon,
+  Alert,
+  CircularProgress,
+  Avatar,
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -42,6 +44,7 @@ import {
   Email as EmailIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 // ========== PREMIUM CURSOR GLOW ==========
 const CursorGlow = () => {
@@ -193,63 +196,6 @@ const stepIcons: { [key: number]: React.ReactNode } = {
   5: <CheckCircleIcon />,
 };
 
-// ========== MOCK DATA ==========
-const mockServices = [
-  {
-    id: 1,
-    name: 'General Consultation',
-    icon: <PersonIcon />,
-    duration: '30 min',
-    rating: 4.8,
-    description: 'Standard consultation with a professional',
-    price: '$120',
-    category: 'individual',
-  },
-  {
-    id: 2,
-    name: 'Specialist Consultation',
-    icon: <PersonIcon />,
-    duration: '45 min',
-    rating: 4.9,
-    description: 'In-depth consultation with a specialist',
-    price: '$180',
-    category: 'individual',
-  },
-  {
-    id: 3,
-    name: 'Corporate Training',
-    icon: <BusinessIcon />,
-    duration: '60 min',
-    rating: 4.7,
-    description: 'Team training session for organizations',
-    price: '$350',
-    category: 'institution',
-  },
-  {
-    id: 4,
-    name: 'Health Checkup Package',
-    icon: <BusinessIcon />,
-    duration: '90 min',
-    rating: 4.9,
-    description: 'Comprehensive health screening',
-    price: '$250',
-    category: 'institution',
-  },
-];
-
-const timeSlotData = [
-  { time: '09:00 AM', status: 'Available' },
-  { time: '09:30 AM', status: 'Available' },
-  { time: '10:00 AM', status: 'Limited' },
-  { time: '10:30 AM', status: 'Available' },
-  { time: '11:00 AM', status: 'Booked' },
-  { time: '11:30 AM', status: 'Available' },
-  { time: '12:00 PM', status: 'Available' },
-  { time: '12:30 PM', status: 'Limited' },
-  { time: '01:00 PM', status: 'Booked' },
-  { time: '01:30 PM', status: 'Available' },
-];
-
 // ========== CUSTOM STEP ICON ==========
 const CustomStepIcon: React.FC<StepIconProps> = (props) => {
   const { active, completed, icon } = props;
@@ -351,81 +297,202 @@ const ModeCard: React.FC<ModeCardProps> = ({ type, selected, onClick }) => {
   );
 };
 
-// ========== STEP 2: SELECT SERVICE ==========
-interface ServiceCardProps {
-  service: typeof mockServices[0];
-  selected: boolean;
-  onClick: () => void;
+// ========== STEP 2: SELECT PROFESSIONAL & SERVICE ==========
+interface Professional {
+  _id: string;
+  name: string;
+  profession: string;
+  email: string;
+  avatar?: string;
 }
 
-const ServiceCard: React.FC<ServiceCardProps> = ({ service, selected, onClick }) => {
+interface Service {
+  _id: string;
+  name: string;
+  description: string;
+  duration: number;
+  price: number;
+  category: string;
+}
+
+const ProfessionalServiceSelector: React.FC<{
+  onSelectProfessional: (professional: Professional) => void;
+  onSelectService: (service: string) => void;
+  selectedProfessional: Professional | null;
+  selectedService: string;
+}> = ({ onSelectProfessional, onSelectService, selectedProfessional, selectedService }) => {
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [servicesLoading, setServicesLoading] = useState(false);
+
+  // Fetch professionals from backend
+  useEffect(() => {
+    const fetchProfessionals = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch('http://localhost:5000/api/users/professionals');
+        const data = await response.json();
+        if (data.success) {
+          setProfessionals(data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch professionals:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfessionals();
+  }, []);
+
+  // Fetch services when professional is selected
+  useEffect(() => {
+    if (selectedProfessional) {
+      const fetchServices = async () => {
+        setServicesLoading(true);
+        setServices([]);
+        try {
+          const response = await fetch(`http://localhost:5000/api/users/${selectedProfessional._id}/services`);
+          const data = await response.json();
+          if (data.success) {
+            setServices(data.data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch services:', error);
+        } finally {
+          setServicesLoading(false);
+        }
+      };
+      fetchServices();
+    }
+  }, [selectedProfessional]);
+
+  // Auto-select first service if none selected
+  useEffect(() => {
+    if (services.length > 0 && !selectedService) {
+      onSelectService(services[0].name);
+    }
+  }, [services, selectedService, onSelectService]);
+
   return (
-    <HoverGlow borderRadius={radius.card} color={colors.primary} lift>
-      <Card
-        onClick={onClick}
-        sx={{
-          cursor: 'pointer',
-          borderRadius: radius.card,
-          bgcolor: selected
-            ? alpha(colors.primary, 0.1)
-            : 'rgba(255,255,255,0.6)',
-          backdropFilter: 'blur(12px)',
-          border: selected ? `2px solid ${colors.primary}` : '1px solid rgba(255,255,255,0.5)',
-          boxShadow: selected ? `0 20px 30px ${alpha(colors.primary, 0.2)}` : colors.cardShadow,
-          transition: 'all 0.3s ease',
-          p: 3,
-          height: '100%',
-          '&:hover': {
-            bgcolor: selected ? alpha(colors.primary, 0.15) : 'rgba(255,255,255,0.8)',
-          },
-        }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: '50%',
-              bgcolor: alpha(colors.primary, 0.1),
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {service.icon}
-          </Box>
-          {service.price && (
-            <Chip
-              label={service.price}
-              size="small"
-              sx={{
-                bgcolor: alpha(colors.primary, 0.1),
-                color: colors.primary,
-                fontWeight: 600,
-              }}
-            />
+    <Box sx={{ minHeight: 400 }}>
+      <Typography variant="h6" sx={{ mb: 2, color: colors.textPrimary }}>Select Professional</Typography>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Grid container spacing={2} sx={{ mb: 4 }}>
+          {professionals.length === 0 ? (
+            <Grid item xs={12}>
+              <Typography color="text.secondary" align="center">
+                No professionals found.
+              </Typography>
+            </Grid>
+          ) : (
+            professionals.map((pro) => (
+              <Grid item xs={12} sm={6} md={4} key={pro._id}>
+                <Card
+                  onClick={() => onSelectProfessional(pro)}
+                  sx={{
+                    cursor: 'pointer',
+                    p: 2,
+                    borderRadius: radius.card,
+                    bgcolor: selectedProfessional?._id === pro._id
+                      ? alpha(colors.primary, 0.1)
+                      : 'rgba(255,255,255,0.6)',
+                    border: selectedProfessional?._id === pro._id
+                      ? `2px solid ${colors.primary}`
+                      : '1px solid rgba(255,255,255,0.5)',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: `0 8px 20px ${alpha(colors.primary, 0.1)}`,
+                    },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: colors.primary }}>
+                      {pro.name[0]}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                        {pro.name}
+                      </Typography>
+                      <Typography variant="body2" color={colors.textSecondary}>
+                        {pro.profession}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Card>
+              </Grid>
+            ))
           )}
-        </Box>
-        <Typography variant="h6" sx={{ fontWeight: 600, color: colors.textPrimary, mb: 1 }}>
-          {service.name}
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <Rating value={service.rating} precision={0.1} readOnly size="small" />
-          <Typography variant="body2" color={colors.textSecondary}>
-            {service.rating}
-          </Typography>
-        </Box>
-        <Typography variant="body2" color={colors.textSecondary} sx={{ mb: 2 }}>
-          {service.description}
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <AccessTimeIcon sx={{ fontSize: 16, color: colors.primary }} />
-          <Typography variant="body2" color={colors.textPrimary}>
-            {service.duration}
-          </Typography>
-        </Box>
-      </Card>
-    </HoverGlow>
+        </Grid>
+      )}
+
+      {selectedProfessional && (
+        <>
+          <Typography variant="h6" sx={{ mb: 2, color: colors.textPrimary }}>Select Service</Typography>
+          {servicesLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Grid container spacing={2}>
+              {services.length === 0 ? (
+                <Grid item xs={12}>
+                  <Typography color="text.secondary" align="center">
+                    No services found for this professional.
+                  </Typography>
+                </Grid>
+              ) : (
+                services.map((service) => (
+                  <Grid item xs={12} sm={6} md={4} key={service._id}>
+                    <Card
+                      onClick={() => onSelectService(service.name)}
+                      sx={{
+                        cursor: 'pointer',
+                        p: 2,
+                        borderRadius: radius.card,
+                        bgcolor: selectedService === service.name
+                          ? alpha(colors.primary, 0.1)
+                          : 'rgba(255,255,255,0.6)',
+                        border: selectedService === service.name
+                          ? `2px solid ${colors.primary}`
+                          : '1px solid rgba(255,255,255,0.5)',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: `0 8px 20px ${alpha(colors.primary, 0.1)}`,
+                        },
+                      }}
+                    >
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                        {service.name}
+                      </Typography>
+                      <Typography variant="body2" color={colors.textSecondary} sx={{ mt: 1 }}>
+                        {service.description}
+                      </Typography>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+                        <Chip
+                          label={`$${service.price}`}
+                          size="small"
+                          sx={{ bgcolor: alpha(colors.primary, 0.1), color: colors.primary }}
+                        />
+                        <Typography variant="caption" color={colors.textSecondary}>
+                          {service.duration} min
+                        </Typography>
+                      </Box>
+                    </Card>
+                  </Grid>
+                ))
+              )}
+            </Grid>
+          )}
+        </>
+      )}
+    </Box>
   );
 };
 
@@ -433,14 +500,41 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, selected, onClick })
 interface CalendarProps {
   selectedDate: Date | null;
   onSelect: (date: Date) => void;
+  professionalId?: string;
 }
 
-const Calendar: React.FC<CalendarProps> = ({ selectedDate, onSelect }) => {
+const Calendar: React.FC<CalendarProps> = ({ selectedDate, onSelect, professionalId }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [availableDates, setAvailableDates] = useState<Date[]>([]);
+  const [loading, setLoading] = useState(false);
+
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  // Fetch available dates when professional is selected
+  useEffect(() => {
+    if (professionalId) {
+      const fetchAvailability = async () => {
+        setLoading(true);
+        try {
+          const response = await fetch(
+            `http://localhost:5000/api/availability/${professionalId}?month=${currentMonth.getMonth() + 1}&year=${currentMonth.getFullYear()}`
+          );
+          const data = await response.json();
+          if (data.success) {
+            setAvailableDates(data.data.map((d: string) => new Date(d)));
+          }
+        } catch (error) {
+          console.error('Failed to fetch availability:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchAvailability();
+    }
+  }, [professionalId, currentMonth]);
 
   const handlePrevMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
@@ -450,10 +544,17 @@ const Calendar: React.FC<CalendarProps> = ({ selectedDate, onSelect }) => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   };
 
+  const isDateAvailable = (day: number) => {
+    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    return availableDates.some(
+      (d) => d.toDateString() === date.toDateString()
+    );
+  };
+
   const isDateDisabled = (day: number) => {
     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     date.setHours(0, 0, 0, 0);
-    return date < today || (date.getDay() === 0 || date.getDay() === 6);
+    return date < today || !isDateAvailable(day);
   };
 
   const isSelected = (day: number) => {
@@ -550,7 +651,7 @@ const Calendar: React.FC<CalendarProps> = ({ selectedDate, onSelect }) => {
 
       <Box sx={{ mt: 2, textAlign: 'center' }}>
         <Typography variant="body2" color={colors.textSecondary}>
-          Available booking window: 9:00 AM – 5:00 PM
+          {loading ? 'Loading availability...' : 'Available dates are selectable'}
         </Typography>
       </Box>
     </Paper>
@@ -560,31 +661,16 @@ const Calendar: React.FC<CalendarProps> = ({ selectedDate, onSelect }) => {
 // ========== STEP 4: SELECT TIME SLOT ==========
 interface TimeSlotProps {
   time: string;
-  status: string;
+  available: boolean;
   selected: boolean;
   onClick: () => void;
 }
 
-const TimeSlotButton: React.FC<TimeSlotProps> = ({ time, status, selected, onClick }) => {
-  const getStatusColor = () => {
-    switch (status) {
-      case 'Available':
-        return colors.success;
-      case 'Limited':
-        return '#F59E0B'; // orange
-      case 'Booked':
-        return colors.error;
-      default:
-        return colors.textLight;
-    }
-  };
-
-  const isDisabled = status === 'Booked';
-
+const TimeSlotButton: React.FC<TimeSlotProps> = ({ time, available, selected, onClick }) => {
   return (
     <Button
       onClick={onClick}
-      disabled={isDisabled}
+      disabled={!available}
       sx={{
         borderRadius: radius.pill,
         py: 1.5,
@@ -614,11 +700,11 @@ const TimeSlotButton: React.FC<TimeSlotProps> = ({ time, status, selected, onCli
           </Typography>
         </Box>
         <Chip
-          label={status}
+          label={available ? 'Available' : 'Booked'}
           size="small"
           sx={{
-            bgcolor: alpha(getStatusColor(), 0.1),
-            color: getStatusColor(),
+            bgcolor: available ? alpha(colors.success, 0.1) : alpha(colors.error, 0.1),
+            color: available ? colors.success : colors.error,
             fontWeight: 600,
             fontSize: '0.7rem',
           }}
@@ -638,7 +724,8 @@ interface DetailsFormProps {
   };
   onChange: (field: string, value: string) => void;
   summary: {
-    service?: typeof mockServices[0];
+    professional?: Professional;
+    service?: string;
     date?: Date | null;
     time?: string;
   };
@@ -765,14 +852,27 @@ const DetailsForm: React.FC<DetailsFormProps> = ({ details, onChange, summary })
             Appointment Summary
           </Typography>
           <List>
+            {summary.professional && (
+              <ListItem sx={{ px: 0, py: 1 }}>
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <PersonIcon sx={{ color: colors.primary }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Professional"
+                  secondary={summary.professional.name}
+                  primaryTypographyProps={{ color: colors.textSecondary, variant: 'body2' }}
+                  secondaryTypographyProps={{ color: colors.textPrimary, variant: 'body1', fontWeight: 500 }}
+                />
+              </ListItem>
+            )}
             {summary.service && (
               <ListItem sx={{ px: 0, py: 1 }}>
                 <ListItemIcon sx={{ minWidth: 36 }}>
-                  <EventIcon sx={{ color: colors.primary }} />
+                  <BusinessIcon sx={{ color: colors.primary }} />
                 </ListItemIcon>
                 <ListItemText
                   primary="Service"
-                  secondary={summary.service.name}
+                  secondary={summary.service}
                   primaryTypographyProps={{ color: colors.textSecondary, variant: 'body2' }}
                   secondaryTypographyProps={{ color: colors.textPrimary, variant: 'body1', fontWeight: 500 }}
                 />
@@ -825,7 +925,8 @@ interface ConfirmationProps {
   };
   summary: {
     mode?: 'individual' | 'institution';
-    service?: typeof mockServices[0];
+    professional?: Professional;
+    service?: string;
     date?: Date | null;
     time?: string;
   };
@@ -897,18 +998,18 @@ const Confirmation: React.FC<ConfirmationProps> = ({ details, summary, onAddToCa
           </Grid>
           <Grid item xs={6}>
             <Typography variant="body2" color={colors.textSecondary}>
-              Service
+              Professional
             </Typography>
             <Typography variant="body1" color={colors.textPrimary}>
-              {summary.service?.name}
+              {summary.professional?.name}
             </Typography>
           </Grid>
           <Grid item xs={6}>
             <Typography variant="body2" color={colors.textSecondary}>
-              Professional/Institution
+              Service
             </Typography>
             <Typography variant="body1" color={colors.textPrimary}>
-              {summary.mode === 'individual' ? 'Individual' : 'Institution'}
+              {summary.service}
             </Typography>
           </Grid>
           <Grid item xs={6}>
@@ -980,20 +1081,24 @@ const BookAppointment: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // State
   const [activeStep, setActiveStep] = useState(0);
   const [mode, setMode] = useState<'individual' | 'institution' | null>(null);
-  const [selectedService, setSelectedService] = useState<typeof mockServices[0] | null>(null);
+  const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
+  const [selectedService, setSelectedService] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<{ time: string; available: boolean }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [details, setDetails] = useState({
-    name: '',
+    name: user?.name || '',
     phone: '',
-    email: '',
+    email: user?.email || '',
     notes: '',
   });
-  const timeSlotStatus = timeSlotData;
 
   // Texture animation ref
   const textureRef = useRef<HTMLDivElement>(null);
@@ -1011,32 +1116,124 @@ const BookAppointment: React.FC = () => {
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  const steps = ['Select Mode', 'Choose Service', 'Select Date', 'Pick Time', 'Enter Details', 'Confirmation'];
+  const steps = ['Select Mode', 'Choose Professional & Service', 'Select Date', 'Pick Time', 'Enter Details', 'Confirmation'];
 
-  const handleNext = () => {
-    if (activeStep === 0 && !mode) return;
-    if (activeStep === 1 && !selectedService) return;
-    if (activeStep === 2 && !selectedDate) return;
-    if (activeStep === 3 && !selectedTime) return;
-    if (activeStep === 4 && (!details.name || !details.phone || !details.email)) return;
+  // Fetch available time slots when date is selected
+  useEffect(() => {
+    if (selectedProfessional && selectedDate) {
+      const fetchTimeSlots = async () => {
+        setLoading(true);
+        try {
+          const formattedDate = selectedDate.toISOString().split('T')[0];
+          const token = localStorage.getItem('appointo_token');
+          const response = await fetch(
+            `http://localhost:5000/api/availability/${selectedProfessional._id}/slots?date=${formattedDate}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            }
+          );
+          const data = await response.json();
+          if (data.success) {
+            setAvailableTimeSlots(data.data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch time slots:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchTimeSlots();
+    }
+  }, [selectedProfessional, selectedDate]);
 
-    setActiveStep((prev) => prev + 1);
+  const handleNext = async () => {
+    if (activeStep === 0 && !mode) {
+      setError('Please select a booking mode');
+      return;
+    }
+    if (activeStep === 1 && (!selectedProfessional || !selectedService)) {
+      setError('Please select both a professional and a service');
+      return;
+    }
+    if (activeStep === 2 && !selectedDate) {
+      setError('Please select a date');
+      return;
+    }
+    if (activeStep === 3 && !selectedTime) {
+      setError('Please select a time slot');
+      return;
+    }
+    if (activeStep === 4 && (!details.name || !details.phone || !details.email)) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    if (activeStep === 4) {
+      // Submit booking
+      try {
+        setLoading(true);
+        setError('');
+        const token = localStorage.getItem('appointo_token');
+        
+        const formattedDate = selectedDate?.toISOString().split('T')[0];
+        
+        const response = await fetch('http://localhost:5000/api/appointments', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            professionalId: selectedProfessional?._id,
+            service: selectedService,
+            date: formattedDate,
+            time: selectedTime,
+            notes: details.notes || ''
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          setActiveStep((prev) => prev + 1);
+        } else {
+          setError(data.error || 'Failed to book appointment');
+        }
+      } catch (err) {
+        console.error('Booking error:', err);
+        setError('Error connecting to server');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setActiveStep((prev) => prev + 1);
+      setError('');
+    }
   };
 
   const handleBack = () => {
     setActiveStep((prev) => prev - 1);
+    setError('');
   };
 
   const handleModeSelect = (selected: 'individual' | 'institution') => {
     setMode(selected);
   };
 
-  const handleServiceSelect = (service: typeof mockServices[0]) => {
+  const handleProfessionalSelect = (professional: Professional) => {
+    setSelectedProfessional(professional);
+    setSelectedService('');
+  };
+
+  const handleServiceSelect = (service: string) => {
     setSelectedService(service);
   };
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
+    setSelectedTime(null);
   };
 
   const handleTimeSelect = (time: string) => {
@@ -1057,7 +1254,7 @@ const BookAppointment: React.FC = () => {
 
   const isNextDisabled = () => {
     if (activeStep === 0 && !mode) return true;
-    if (activeStep === 1 && !selectedService) return true;
+    if (activeStep === 1 && (!selectedProfessional || !selectedService)) return true;
     if (activeStep === 2 && !selectedDate) return true;
     if (activeStep === 3 && !selectedTime) return true;
     if (activeStep === 4 && (!details.name || !details.phone || !details.email)) return true;
@@ -1171,6 +1368,13 @@ const BookAppointment: React.FC = () => {
           </Stepper>
         </Paper>
 
+        {/* Error Alert */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+
         {/* Step Content */}
         <Paper
           sx={{
@@ -1208,25 +1412,18 @@ const BookAppointment: React.FC = () => {
             </Box>
           )}
 
-          {/* Step 2: Select Service */}
+          {/* Step 2: Select Professional & Service */}
           {activeStep === 1 && (
             <Box sx={{ minHeight: 400 }}>
               <Typography variant="h5" sx={{ fontWeight: 600, color: colors.textPrimary, mb: 4 }}>
-                Choose a Service
+                Choose a Professional and Service
               </Typography>
-              <Grid container spacing={3}>
-                {mockServices
-                  .filter((s) => (mode ? s.category === mode : true))
-                  .map((service) => (
-                    <Grid item xs={12} sm={6} md={4} key={service.id}>
-                      <ServiceCard
-                        service={service}
-                        selected={selectedService?.id === service.id}
-                        onClick={() => handleServiceSelect(service)}
-                      />
-                    </Grid>
-                  ))}
-              </Grid>
+              <ProfessionalServiceSelector
+                onSelectProfessional={handleProfessionalSelect}
+                onSelectService={handleServiceSelect}
+                selectedProfessional={selectedProfessional}
+                selectedService={selectedService}
+              />
             </Box>
           )}
 
@@ -1236,7 +1433,11 @@ const BookAppointment: React.FC = () => {
               <Typography variant="h5" sx={{ fontWeight: 600, color: colors.textPrimary, mb: 4 }}>
                 Select a Date
               </Typography>
-              <Calendar selectedDate={selectedDate} onSelect={handleDateSelect} />
+              <Calendar 
+                selectedDate={selectedDate} 
+                onSelect={handleDateSelect}
+                professionalId={selectedProfessional?._id}
+              />
             </Box>
           )}
 
@@ -1246,18 +1447,24 @@ const BookAppointment: React.FC = () => {
               <Typography variant="h5" sx={{ fontWeight: 600, color: colors.textPrimary, mb: 4 }}>
                 Pick a Time Slot
               </Typography>
-              <Grid container spacing={2}>
-                {timeSlotStatus.map((slot) => (
-                  <Grid item xs={12} sm={6} md={4} key={slot.time}>
-                    <TimeSlotButton
-                      time={slot.time}
-                      status={slot.status}
-                      selected={selectedTime === slot.time}
-                      onClick={() => handleTimeSelect(slot.time)}
-                    />
-                  </Grid>
-                ))}
-              </Grid>
+              {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : (
+                <Grid container spacing={2}>
+                  {availableTimeSlots.map((slot) => (
+                    <Grid item xs={12} sm={6} md={4} key={slot.time}>
+                      <TimeSlotButton
+                        time={slot.time}
+                        available={slot.available}
+                        selected={selectedTime === slot.time}
+                        onClick={() => handleTimeSelect(slot.time)}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
             </Box>
           )}
 
@@ -1271,7 +1478,8 @@ const BookAppointment: React.FC = () => {
                 details={details}
                 onChange={handleDetailsChange}
                 summary={{
-                  service: selectedService || undefined,
+                  professional: selectedProfessional || undefined,
+                  service: selectedService,
                   date: selectedDate,
                   time: selectedTime || undefined,
                 }}
@@ -1286,7 +1494,8 @@ const BookAppointment: React.FC = () => {
                 details={details}
                 summary={{
                   mode: mode || undefined,
-                  service: selectedService || undefined,
+                  professional: selectedProfessional || undefined,
+                  service: selectedService,
                   date: selectedDate,
                   time: selectedTime || undefined,
                 }}
@@ -1302,7 +1511,7 @@ const BookAppointment: React.FC = () => {
               <Button
                 variant="outlined"
                 onClick={handleBack}
-                disabled={activeStep === 0}
+                disabled={activeStep === 0 || loading}
                 startIcon={<ArrowBackIcon />}
                 sx={{
                   borderColor: colors.border,
@@ -1321,8 +1530,8 @@ const BookAppointment: React.FC = () => {
               <Button
                 variant="contained"
                 onClick={handleNext}
-                disabled={isNextDisabled()}
-                endIcon={<ArrowForwardIcon />}
+                disabled={isNextDisabled() || loading}
+                endIcon={loading ? <CircularProgress size={20} /> : <ArrowForwardIcon />}
                 sx={{
                   bgcolor: colors.primary,
                   borderRadius: radius.button,
